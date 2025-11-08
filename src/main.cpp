@@ -4,32 +4,10 @@
 #include <optional>
 #include <vector>
 
-#include "tokenization.hpp"
+#include "./parser.hpp"
+#include "./tokenization.hpp"
+#include "./generation.hpp"
 
-
-//return token as asm
-std::string tokenToAsm(const std::vector<Token>& tokens)
-{
-    std::stringstream output;
-    output << "global _start\n_start:\n";
-    for (int i = 0; i < tokens.size(); ++i)
-    {
-        const Token& token = tokens.at(i);
-        if (token.type == TokenType::exit)
-        {
-            if (i + 1 < tokens.size() && tokens.at(i + 1).type == TokenType::init_lit)
-            {
-                if (i + 2 < tokens.size() && tokens.at(i +2).type == TokenType::semi)
-                {
-                    output << "   mov rax, 60\n";
-                    output << "   mov rdi, " << tokens.at(i + 1).value.value() << std::endl;
-                    output << "   syscall";
-                }
-            }
-        }
-    }
-    return output.str();
-}
 
 int main(int argc, char* argv[]) {
     //Expect one arg after the program name
@@ -54,15 +32,29 @@ int main(int argc, char* argv[]) {
         contents = contents_stream.str();
     }
 
+    //Tokenizer
     Tokenizer tokenizer(std::move(contents));
     std::vector<Token> tokens = tokenizer.tokenize();
+
+    //Parser
+    Parser parser(std::move(tokens));
+    std::optional<NodeExit> tree = parser.parse();
+
+    if (!tree.has_value()){
+        std::cerr << "Error: Could not open file " << argv[1] << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    //Generation
+    Generator generator(tree.value());
+
     {
          std::fstream file("output.asm", std::ios::out);
-         file << tokenToAsm(tokens);
+         file << generator.generate();
     }
 
     //system commands in WIN
-    system("wsl nasm -felf64 output.asm -o output.o");
+    system("wsl nasm -felf64 output.asm");
     system("wsl ld output.o -o output");
 
     return EXIT_SUCCESS;

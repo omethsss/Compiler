@@ -27,12 +27,12 @@ public:
     {
         std::vector<Token> tokens;
         std::string buf;
-        while (peak().has_value())
-        {
+
+        while (peak().has_value()){
             if (std::isalpha(peak().value()))
             {
                 buf.push_back(consume());
-                while (peak().has_value() && std::isalnum(peak().value())){
+                while (peak().has_value() && std::isalnum(peak().value())){ //check end of the file (safe)
                     buf.push_back(consume());
                 }
                 if (buf == "exit"){
@@ -50,6 +50,7 @@ public:
                 }
                 tokens.push_back({.type = TokenType::init_lit,  .value = buf});
                 buf.clear();
+                continue;
             }else if (peak().value() == ';'){
                 consume();
                 tokens.push_back({ .type = TokenType::semi});
@@ -68,8 +69,8 @@ public:
 
 
 private:
-
-    std::optional<char> peak(int ahead = 1) const{
+    // for peaking ahead
+    [[nodiscard]] inline std::optional<char> peak(int ahead = 1) const{
         if (m_index + 1 > m_src.length()){
             return{};
         }else{
@@ -77,9 +78,10 @@ private:
         }
     }
 
-    char consume(){
+    //consume characters
+    inline char consume(){
         return m_src.at(m_index++);
     }
     const std::string m_src;
-    int m_index;
+    int m_index = 0;
 };
